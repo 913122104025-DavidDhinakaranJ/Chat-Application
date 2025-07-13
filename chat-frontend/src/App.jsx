@@ -9,12 +9,21 @@ import { Toaster } from "react-hot-toast";
 function App() {
   const { authUser } = useContext(AuthContext);
   return (
-    <div className="bg-[url('/background.jpg')] bg-cover bg-center h-screen w-full">
+    <div className="bg-sky-100">
       <Toaster />
       <Routes>
-        <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
-        <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+        <Route
+          path="/"
+          element={authUser ? <HomePage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/login"
+          element={!authUser ? <LoginPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/profile"
+          element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
+        />
       </Routes>
     </div>
   );

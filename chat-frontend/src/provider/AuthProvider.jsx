@@ -1,11 +1,10 @@
-import { createContext, useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import axiosInstance from "../utils/axiosInstance";
+import { AuthContext } from "../context/AuthContext";
 
 const serverUrl = import.meta.env.VITE_SERVER_URL;
-
-export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -13,8 +12,32 @@ export const AuthProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
 
-  // Check if token is valid on load
-  const checkAuth = async () => {
+  // 🔥 Define connectSocket FIRST
+  const connectSocket = useCallback((userData) => {
+    if (!userData || socket?.connected) return;
+
+    const newSocket = io(serverUrl, {
+      query: {
+        userId: userData._id,
+      },
+    });
+    newSocket.connect();
+    setSocket(newSocket);
+
+    newSocket.on('getOnlineUsers', (userIds) => {
+      setOnlineUsers(userIds);
+    });
+  }, [socket]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    setAuthUser(null);
+    setToken(null);
+    setOnlineUsers([]);
+    socket?.disconnect();
+  }, [socket]);
+
+  const checkAuth = useCallback(async () => {
     try {
       const { data } = await axiosInstance.get('/api/auth/check');
       if (data.success) {
@@ -28,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         toast.error(error?.response?.data?.message || error.message);
       }
     }
-  };
+  }, [connectSocket, handleLogout]);
 
   const login = async (state, credentials) => {
     try {
@@ -52,14 +75,6 @@ export const AuthProvider = ({ children }) => {
     toast.success('Logged out successfully');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setAuthUser(null);
-    setToken(null);
-    setOnlineUsers([]);
-    socket?.disconnect();
-  };
-
   const updateProfile = async (body) => {
     try {
       const { data } = await axiosInstance.put('/api/auth/update', body);
@@ -74,24 +89,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const connectSocket = (userData) => {
-    if (!userData || socket?.connected) return;
-    const newSocket = io(serverUrl, {
-      query: {
-        userId: userData._id,
-      },
-    });
-    newSocket.connect();
-    setSocket(newSocket);
-
-    newSocket.on('getOnlineUsers', (userIds) => {
-      setOnlineUsers(userIds);
-    });
-  };
-
   useEffect(() => {
     checkAuth();
-  }, [token]);
+  }, [token, checkAuth]);
 
   return (
     <AuthContext.Provider value={{
